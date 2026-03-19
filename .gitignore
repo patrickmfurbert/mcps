@@ -1,0 +1,17 @@
+# Python
+**/.venv/
+**/__pycache__/
+**/*.pyc
+**/.python-version
+
+# uv
+**/uv.lock
+
+# .NET
+**/bin/
+**/obj/
+
+# General
+**/.env
+*.log
+.DS_Store
