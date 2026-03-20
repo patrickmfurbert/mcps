@@ -1,0 +1,3 @@
+SPLUNK_URL=https://your-splunk-instance.com:8089
+SPLUNK_USERNAME=your-username
+SPLUNK_PASSWORD=your-password
