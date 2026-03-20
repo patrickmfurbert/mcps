@@ -2,6 +2,8 @@
 
 A simple MCP (Model Context Protocol) server written in Python that exposes basic arithmetic tools to AI assistants. Built as a learning project to understand MCP server development.
 
+> **Platform:** Assumes a Linux filesystem and OS. Instructions and paths may not work as-is on macOS or Windows.
+
 ## What is MCP?
 
 MCP is an open protocol that allows AI assistants to interact with external tools and data sources in a standardized way. Instead of HTTP endpoints, you define Python functions decorated as tools. The AI decides when to call them based on context and the tool descriptions you provide.

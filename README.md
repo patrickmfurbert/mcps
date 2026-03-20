@@ -2,6 +2,13 @@
 
 A collection of [MCP (Model Context Protocol)](https://modelcontextprotocol.io) servers — small, self-contained services that expose tools to AI assistants like GitHub Copilot CLI.
 
+## Setup
+
+Clone into your `~/projects` directory:
+```bash
+git clone https://github.com/pastrycak3s/mcps.git ~/projects/mcps
+```
+
 ## Servers
 
 | Path | Language | Description |

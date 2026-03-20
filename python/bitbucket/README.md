@@ -2,6 +2,8 @@
 
 A Python MCP (Model Context Protocol) server that exposes Bitbucket Data Center as a set of tools for AI assistants. Supports pull request management, repository browsing, branch comparison, and build status — queryable through natural language via Copilot CLI or any MCP-compatible host.
 
+> **Platform:** Assumes a Linux filesystem and OS. Instructions and paths may not work as-is on macOS or Windows.
+
 ## Tools
 
 **Repositories**
