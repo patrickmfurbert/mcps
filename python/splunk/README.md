@@ -2,6 +2,10 @@
 
 A Python MCP (Model Context Protocol) server that exposes Splunk Enterprise as a set of tools for AI assistants. Supports running SPL searches, browsing indexes and sourcetypes, and managing saved searches — queryable through natural language via Copilot CLI or any MCP-compatible host.
 
+## Platform
+
+These instructions assume a Linux environment. Path references (e.g. `/home/your-username/`) and install commands are Linux-specific. Windows and macOS users will need to adjust paths and package manager commands accordingly.
+
 ## Tools
 
 **Search**
