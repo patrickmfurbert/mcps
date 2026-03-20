@@ -13,6 +13,7 @@ load_dotenv()
 SPLUNK_URL = os.getenv("SPLUNK_URL", "").rstrip("/")
 SPLUNK_USERNAME = os.getenv("SPLUNK_USERNAME", "")
 SPLUNK_PASSWORD = os.getenv("SPLUNK_PASSWORD", "")
+SPLUNK_TIMEOUT = float(os.getenv("SPLUNK_TIMEOUT", "45"))
 API_BASE = f"{SPLUNK_URL}/services"
 
 logging.basicConfig(
@@ -24,10 +25,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-logger.info(f"Starting Splunk MCP server")
+logger.info("Starting Splunk MCP server")
 logger.info(f"SPLUNK_URL: {SPLUNK_URL}")
 logger.info(f"SPLUNK_USERNAME: {SPLUNK_USERNAME}")
 logger.info(f"SPLUNK_PASSWORD set: {'yes' if SPLUNK_PASSWORD else 'no'}")
+logger.info(f"SPLUNK_TIMEOUT: {SPLUNK_TIMEOUT}")
 
 mcp = FastMCP("splunk")
 
@@ -56,7 +58,7 @@ async def get(path: str, params: dict = {}) -> dict:
     url = f"{API_BASE}{path}"
     logger.debug(f"GET {url} params={params}")
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=SPLUNK_TIMEOUT) as client:
             response = await client.get(
                 url,
                 headers=get_json_headers(),
@@ -77,7 +79,7 @@ async def post(path: str, data: dict = {}) -> dict:
     url = f"{API_BASE}{path}"
     logger.debug(f"POST {url} data={data}")
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=SPLUNK_TIMEOUT) as client:
             response = await client.post(
                 url,
                 headers=get_headers(),
@@ -115,7 +117,7 @@ async def run_search(spl: str, earliest: str = "-24h", latest: str = "now", max_
     sid = job["sid"]
     logger.info(f"run_search job created sid={sid}")
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=SPLUNK_TIMEOUT) as client:
         while True:
             status_response = await client.get(
                 f"{API_BASE}/search/jobs/{sid}",
