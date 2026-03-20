@@ -54,7 +54,7 @@ npm --version
 
 Clone the repo and navigate to this server:
 ```bash
-git clone https://github.com/pastrycak3s/mcps.git
+git clone https://github.com/patrickmfurbert/mcps.git
 cd mcps/python/bitbucket
 ```
 
