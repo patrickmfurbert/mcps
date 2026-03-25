@@ -74,16 +74,23 @@ def main():
 
     # main.py
     log_path = f"/tmp/{name}-mcp.log"
+
     env_getenv_lines = "\n".join(
-        f'{var} = os.getenv("{var}", "")'
-        for var, _ in env_vars
-    )
-    env_log_lines = "\n".join(
-        f'logger.info(f"{var}: {{{var}}}")'
+        f'{var} = os.getenv("{var}", "").rstrip("/")'
+        if var.endswith("URL")
+        else f'{var} = os.getenv("{var}", "")'
         for var, _ in env_vars
     )
 
-    # Use the first env var as a hint for the API_BASE placeholder
+    sensitive_keywords = ["TOKEN", "PASSWORD", "SECRET", "KEY"]
+
+    env_log_lines = "\n".join(
+        f'logger.info(f"{var} set: {{\'yes\' if {var} else \'no\'}}")'
+        if any(sensitive in var for sensitive in sensitive_keywords)
+        else f'logger.info(f"{var}: {{{var}}}")'
+        for var, _ in env_vars
+    )
+
     first_var = env_vars[0][0]
 
     main_py = server_dir / "main.py"
