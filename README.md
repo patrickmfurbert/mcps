@@ -6,7 +6,7 @@ A collection of [MCP (Model Context Protocol)](https://modelcontextprotocol.io) 
 
 Clone into your `~/projects` directory:
 ```bash
-git clone https://github.com/pastrycak3s/mcps.git ~/projects/mcps
+git clone https://github.com/patrickmfurbert/mcps.git ~/projects/mcps
 ```
 
 ## Servers
@@ -16,3 +16,4 @@ git clone https://github.com/pastrycak3s/mcps.git ~/projects/mcps
 | [`python/calculator`](python/calculator) | Python | Test MCP — basic arithmetic (`add`, `subtract`) via FastMCP |
 | [`python/bitbucket`](python/bitbucket) | Python | Bitbucket Data Center — PRs, repos, branches, and build status via FastMCP |
 | [`python/splunk`](python/splunk) | Python | Splunk Enterprise — SPL searches, indexes, sourcetypes, and saved searches via FastMCP |
+| [`python/confluence`](python/confluence) | Python | Confluence - searches and lookups |

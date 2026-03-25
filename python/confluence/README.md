@@ -170,3 +170,89 @@ The startup log entries will confirm whether `CONFLUENCE_URL` and `CONFLUENCE_TO
 - `add_page_comment` accepts plain text and wraps it in Confluence storage XML automatically.
 - `search` uses CQL — refer to Atlassian's CQL documentation for query syntax.
 - Pyright may show an `unknown symbol` warning on the `FastMCP` import. This is a type stub gap in the `mcp` package and does not affect runtime behavior.
+
+## Windows Configuration
+
+On Windows the path separators and `uv` location differ from Linux. Find your `uv` path with:
+```cmd
+where.exe uv
+```
+
+It will typically be at `C:\Users\your-username\.local\bin\uv.exe` or `C:\Users\your-username\.cargo\bin\uv.exe` depending on how it was installed.
+
+### VS Code
+
+Create or edit `.vscode\mcp.json` in your workspace, or open the user-level config via the Command Palette (`Ctrl+Shift+P`) and search for **MCP: Open User Configuration**. Note that VS Code uses `servers` as the top-level key rather than `mcpServers`:
+```json
+{
+  "servers": {
+    "confluence": {
+      "type": "stdio",
+      "command": "C:\\Users\\your-username\\.local\\bin\\uv.exe",
+      "args": [
+        "run",
+        "--project", "C:\\Users\\your-username\\projects\\mcps\\python\\confluence",
+        "python", "C:\\Users\\your-username\\projects\\mcps\\python\\confluence\\main.py"
+      ]
+    }
+  }
+}
+```
+
+Make sure you are in **Agent mode** in Copilot Chat for MCP tools to be available. Switch to Agent mode using the mode dropdown at the bottom of the chat panel.
+
+### IntelliJ IDEA
+
+Requires IntelliJ IDEA 2025.1 or later with the AI Assistant plugin enabled.
+
+Go to **Settings → Tools → AI Assistant → Model Context Protocol (MCP)** and click **+** to add a new server. Paste the following JSON:
+```json
+{
+  "type": "stdio",
+  "command": "C:\\Users\\your-username\\.local\\bin\\uv.exe",
+  "args": [
+    "run",
+    "--project", "C:\\Users\\your-username\\projects\\mcps\\python\\confluence",
+    "python", "C:\\Users\\your-username\\projects\\mcps\\python\\confluence\\main.py"
+  ]
+}
+```
+
+Click **OK** and restart IntelliJ. MCP tools are only available when the **Codebase** toggle is enabled in the AI Assistant chat window.
+
+### Installing uv on Windows
+
+Do not use the snap installer. Use the official PowerShell installer:
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+Verify:
+```cmd
+uv --version
+```
+
+### Installing Python on Windows
+
+Download from python.org and ensure **Add Python to PATH** is checked during installation. Verify:
+```cmd
+python --version
+```
+
+### Installing Node.js on Windows (for MCP Inspector)
+
+Download the LTS installer from nodejs.org. Verify:
+```cmd
+node --version
+npm --version
+```
+
+### Cloning and installing on Windows
+```cmd
+git clone https://github.com/pastrycak3s/mcps.git
+cd mcps\python\confluence
+uv sync
+copy env-example .env
+```
+
+Edit `.env` with your credentials using Notepad or any text editor.
