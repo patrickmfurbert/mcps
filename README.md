@@ -17,3 +17,4 @@ git clone https://github.com/patrickmfurbert/mcps.git ~/projects/mcps
 | [`python/bitbucket`](python/bitbucket) | Python | Bitbucket Data Center — PRs, repos, branches, and build status via FastMCP |
 | [`python/splunk`](python/splunk) | Python | Splunk Enterprise — SPL searches, indexes, sourcetypes, and saved searches via FastMCP |
 | [`python/confluence`](python/confluence) | Python | Confluence - searches and lookups |
+| [`python/jira`](python/jira) | Python | Jira Data Center — projects, issues, sprints, boards, and comments via FastMCP |
