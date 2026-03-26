@@ -14,7 +14,7 @@ load_dotenv()
 # Environment variables
 # Loaded from .env at startup. See env-example for required variables.
 # ---------------------------------------------------------------------------
-WEBEX_TOKEN = os.getenv("WEBEX_TOKEN", "")
+WEBEX_TOKEN = os.getenv("WEBEX_BOT_TOKEN", "")
 WEBEX_ROOM_ID = os.getenv("WEBEX_ROOM_ID", "")
 
 # ---------------------------------------------------------------------------
