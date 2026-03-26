@@ -179,6 +179,38 @@ async def send_message(text: str, room_id: str = "") -> dict:
 
 
 @mcp.tool()
+async def send_direct_message(person_id: str, text: str) -> dict:
+    """Send a direct message to a Webex user by their person ID.
+    Webex will automatically create a direct message room with that person if one does not already exist.
+
+    Args:
+        person_id: The person ID (from search_people or get_person)
+        text: The message text to send
+    """
+    logger.info(f"send_direct_message person_id={person_id}")
+    return await post("/messages", {
+        "toPersonId": person_id,
+        "text": text,
+    })
+
+
+@mcp.tool()
+async def send_direct_message_by_email(email: str, text: str) -> dict:
+    """Send a direct message to a Webex user by their email address.
+    Webex will automatically create a direct message room with that person if one does not already exist.
+
+    Args:
+        email: The email address of the person to message
+        text: The message text to send
+    """
+    logger.info(f"send_direct_message_by_email email={email}")
+    return await post("/messages", {
+        "toPersonEmail": email,
+        "text": text,
+    })
+
+
+@mcp.tool()
 async def delete_message(message_id: str) -> dict:
     """Delete a message from a Webex room.
 
@@ -230,18 +262,34 @@ async def list_room_members(room_id: str = "") -> dict:
 # --- Blocking message wait ---
 
 @mcp.tool()
-async def wait_for_message(last_message_id: str = "", room_id: str = "") -> dict:
+async def wait_for_message(room_id: str = "") -> dict:
     """Block and wait for a new message in the Webex direct message room.
+    Automatically establishes the current latest message as the baseline before waiting,
+    so only messages that arrive after this tool is called will be returned.
     Polls every 5 seconds until a new message arrives, then returns it.
-    Use last_message_id to avoid returning messages already seen.
     Note: this tool blocks until a message is received — be aware of host tool call timeouts.
 
     Args:
-        last_message_id: The ID of the last seen message. Only returns messages newer than this.
         room_id: The room ID to watch. Defaults to WEBEX_ROOM_ID from .env if not provided.
     """
     target_room = room_id or WEBEX_ROOM_ID
-    logger.info(f"wait_for_message room_id={target_room} last_message_id={last_message_id}")
+    logger.info(f"wait_for_message room_id={target_room} — fetching baseline message ID")
+
+    # Establish baseline — get the current latest message ID before we start waiting
+    baseline_id = ""
+    try:
+        messages = await get("/messages", {
+            "roomId": target_room,
+            "max": 1,
+        })
+        items = messages.get("items", [])
+        if items:
+            baseline_id = items[0]["id"]
+            logger.info(f"wait_for_message baseline_id={baseline_id}")
+    except Exception as e:
+        logger.warning(f"wait_for_message could not fetch baseline: {e} — will return first message seen")
+
+    # Poll until a message newer than the baseline arrives
     while True:
         try:
             messages = await get("/messages", {
@@ -251,7 +299,7 @@ async def wait_for_message(last_message_id: str = "", room_id: str = "") -> dict
             items = messages.get("items", [])
             if items:
                 latest = items[0]
-                if latest["id"] != last_message_id:
+                if latest["id"] != baseline_id:
                     logger.info(f"New message received id={latest['id']}")
                     return latest
         except Exception as e:
