@@ -1,0 +1,3 @@
+JENKINS_URL=https://your-jenkins-instance.com
+JENKINS_USER=your-jenkins-username
+JENKINS_TOKEN=your-api-token
