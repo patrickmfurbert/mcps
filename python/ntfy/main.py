@@ -1,5 +1,6 @@
 import os
 import logging
+import tempfile
 import httpx
 import truststore
 from dotenv import load_dotenv
@@ -16,6 +17,12 @@ load_dotenv()
 NTFY_SERVER_URL = os.getenv("NTFY_SERVER_URL", "").rstrip("/")
 NTFY_DEFAULT_TOPIC = os.getenv("NTFY_DEFAULT_TOPIC", "agent-notifications")
 
+# Log file; defaults to the temp dir so hosts without a writable /tmp (Termux)
+# work as-is. Override with NTFY_LOG_FILE.
+LOG_FILE = os.getenv("NTFY_LOG_FILE") or os.path.join(
+    tempfile.gettempdir(), "ntfy-mcp.log"
+)
+
 # ntfy priority: 1=min, 2=low, 3=default, 4=high, 5=urgent (bypasses Do-Not-Disturb)
 VALID_PRIORITIES = {1, 2, 3, 4, 5}
 
@@ -23,7 +30,7 @@ logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s %(levelname)s %(message)s",
     handlers=[
-        logging.FileHandler("/tmp/ntfy-mcp.log"),
+        logging.FileHandler(LOG_FILE),
     ]
 )
 logger = logging.getLogger(__name__)
