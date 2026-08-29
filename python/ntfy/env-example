@@ -1,0 +1,2 @@
+NTFY_SERVER_URL=http://your-ntfy-host:8090
+NTFY_DEFAULT_TOPIC=agent-notifications
