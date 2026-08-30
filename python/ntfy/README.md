@@ -25,6 +25,19 @@ uv sync
   `tags`, and `click` URL.
 - **check_health** — verify the ntfy server is reachable and healthy.
 
+## Encoding
+
+Every field accepts non-ASCII — em dashes, accents, emoji. HTTP/1.1 header
+values are 7-bit and httpx encodes a `str` value with ASCII, so `title`, `tags`
+and `click` go out as [RFC 2047](https://datatracker.ietf.org/doc/html/rfc2047)
+encoded words (`=?UTF-8?B?...?=`), which ntfy decodes on receipt
+([docs](https://docs.ntfy.sh/publish/)). ASCII values are left as they are. Tags
+are encoded one element at a time so a list stays a list.
+
+Header values are also cleaned: control characters are removed so a value cannot
+split the request or inject a second header, and the edges are trimmed, since a
+header value may not begin or end with whitespace.
+
 ## Register with Claude Code
 
 ```bash
