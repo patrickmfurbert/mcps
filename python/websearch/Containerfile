@@ -1,0 +1,20 @@
+# Container image for the websearch MCP server.
+# Build on the Z420: podman build -t websearch-mcp -f Containerfile .
+FROM docker.io/library/python:3.12-slim
+
+WORKDIR /app
+
+# Install dependencies first so edits to main.py do not bust the dependency layer.
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY main.py .
+
+# Bind inside the container; the host port mapping is chosen at run time.
+ENV MCP_HOST=0.0.0.0
+ENV MCP_PORT=8092
+ENV MCP_MOUNT_PATH=/mcp
+
+EXPOSE 8092
+
+CMD ["python", "main.py"]
