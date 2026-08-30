@@ -1,5 +1,7 @@
 import os
+import base64
 import logging
+import re
 import tempfile
 import httpx
 import truststore
@@ -25,6 +27,30 @@ LOG_FILE = os.getenv("NTFY_LOG_FILE") or os.path.join(
 
 # ntfy priority: 1=min, 2=low, 3=default, 4=high, 5=urgent (bypasses Do-Not-Disturb)
 VALID_PRIORITIES = {1, 2, 3, 4, 5}
+
+# HTTP headers are 7-bit: httpx refuses any header value outside ASCII, so a title
+# like "build — done" raises UnicodeEncodeError before a request is ever sent. ntfy
+# decodes RFC 2047 encoded words, so non-ASCII is sent that way instead:
+# =?UTF-8?B?<base64>?=  (see https://docs.ntfy.sh/publish/). Pure-ASCII values are
+# left alone, so ordinary notifications stay readable on the wire.
+_RFC2047 = re.compile(r"=\?[-A-Za-z0-9_]+\?[BbQq]\?[A-Za-z0-9+/=]*\?=")
+
+
+def encode_header_value(value: str) -> str:
+    """RFC 2047-encode a header value, unless it is ASCII or already encoded."""
+    if value.isascii() or _RFC2047.fullmatch(value):
+        return value
+    encoded = base64.b64encode(value.encode("utf-8")).decode("ascii")
+    return f"=?UTF-8?B?{encoded}?="
+
+
+def encode_tags(tags: str) -> str:
+    """Encode tags one at a time; ntfy decodes each comma-separated element itself,
+    so encoding the whole list as a single word would collapse them into one tag."""
+    if tags.isascii():
+        return tags
+    return ",".join(encode_header_value(tag) for tag in tags.split(","))
+
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -54,13 +80,13 @@ async def publish(
     url = f"{NTFY_SERVER_URL}/{topic}"
     headers: dict[str, str] = {"Content-Type": "text/plain; charset=utf-8"}
     if title:
-        headers["Title"] = title
+        headers["Title"] = encode_header_value(title)
     if priority in VALID_PRIORITIES:
         headers["Priority"] = str(priority)
     if tags:
-        headers["Tags"] = tags
+        headers["Tags"] = encode_tags(tags)
     if click:
-        headers["Click"] = click
+        headers["Click"] = encode_header_value(click)
 
     logger.debug(f"POST {url} title={title!r} priority={priority} tags={tags!r}")
     async with httpx.AsyncClient(timeout=10) as client:
@@ -102,9 +128,14 @@ async def send_notification(
     except httpx.HTTPStatusError as e:
         logger.error(f"publish HTTP error: {e.response.status_code} {e.response.text}")
         return f"ERROR: ntfy returned HTTP {e.response.status_code}: {e.response.text}"
-    except Exception as e:
-        logger.error(f"publish failed: {e}")
+    except httpx.RequestError as e:
+        logger.error(f"publish request failed: {e}")
         return f"ERROR: could not reach ntfy at {NTFY_SERVER_URL}: {e}"
+    except Exception as e:
+        # Anything else is a bug in how the request was built, not a server outage —
+        # keep "could not reach ntfy" reserved for actual transport failures.
+        logger.error(f"publish failed: {type(e).__name__}: {e}")
+        return f"ERROR: {type(e).__name__}: {e}"
 
 
 @mcp.tool()
