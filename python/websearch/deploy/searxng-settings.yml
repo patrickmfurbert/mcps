@@ -1,0 +1,24 @@
+# SearXNG settings for the websearch MCP deployment.
+#
+# Installed to <config-dir>/settings.yml on the Z420 by deploy-z420.sh, which
+# substitutes the secret_key placeholder with a generated value. SearXNG refuses to
+# boot without a secret_key, so the placeholder must never survive into the copy.
+#
+# Note: this file must not repeat a top-level key — YAML keeps only the last
+# duplicate, which would silently discard secret_key and the rest of the block.
+use_default_settings: true
+
+server:
+  secret_key: "REPLACED_AT_DEPLOY"
+  # The limiter returns HTTP 429 to clients with no browser session, which is every
+  # request the MCP makes. It looks like rate limiting, not misconfiguration.
+  limiter: false
+  image_proxy: false
+  method: GET
+
+search:
+  # SearXNG serves HTML unless json is whitelisted here; the MCP calls format=json
+  # and receives a bare 403 if this list is missing or HTML-only.
+  formats:
+    - html
+    - json

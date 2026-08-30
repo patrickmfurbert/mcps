@@ -1,0 +1,6 @@
+# Runtime dependencies for the container image.
+# Kept separate from pyproject.toml so the image can pip-install without a build step.
+httpx>=0.28.1
+mcp[cli]>=1.26.0,<2
+python-dotenv>=1.2.2
+truststore>=0.10.4
