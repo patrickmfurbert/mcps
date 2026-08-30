@@ -28,6 +28,10 @@ LOG_FILE = os.getenv("NTFY_LOG_FILE") or os.path.join(
 # ntfy priority: 1=min, 2=low, 3=default, 4=high, 5=urgent (bypasses Do-Not-Disturb)
 VALID_PRIORITIES = {1, 2, 3, 4, 5}
 
+# Deleted from header values: C0 controls except tab, plus DEL.
+# See clean_header_value().
+_CONTROL_CHARS = {c: None for c in (*range(0x00, 0x09), *range(0x0A, 0x20), 0x7F)}
+
 # HTTP headers are 7-bit: httpx refuses any header value outside ASCII, so a title
 # like "build — done" raises UnicodeEncodeError before a request is ever sent. ntfy
 # decodes RFC 2047 encoded words, so non-ASCII is sent that way instead:
@@ -36,19 +40,36 @@ VALID_PRIORITIES = {1, 2, 3, 4, 5}
 _RFC2047 = re.compile(r"=\?[-A-Za-z0-9_]+\?[BbQq]\?[A-Za-z0-9+/=]*\?=")
 
 
+def clean_header_value(value: str) -> str:
+    """Strip what a header value may not carry.
+
+    Control characters go because one would split the request or inject a second
+    header; h11 rejects them outright, so the notification was lost and reported
+    as a server outage. The edges go because a header value may not begin or end
+    with whitespace, and every server trims it regardless.
+    """
+    return value.translate(_CONTROL_CHARS).strip()
+
+
 def encode_header_value(value: str) -> str:
     """RFC 2047-encode a header value, unless it is ASCII or already encoded."""
-    if value.isascii() or _RFC2047.fullmatch(value):
-        return value
-    encoded = base64.b64encode(value.encode("utf-8")).decode("ascii")
+    cleaned = clean_header_value(value)
+    if cleaned.isascii() or _RFC2047.fullmatch(cleaned):
+        return cleaned
+    # errors="replace" only bites on lone surrogates, which cannot be encoded;
+    # without it a surrogate in a model-emitted title raised UnicodeEncodeError
+    # here, exactly the failure this function exists to prevent.
+    encoded = base64.b64encode(cleaned.encode("utf-8", errors="replace")).decode("ascii")
     return f"=?UTF-8?B?{encoded}?="
 
 
 def encode_tags(tags: str) -> str:
     """Encode tags one at a time; ntfy decodes each comma-separated element itself,
-    so encoding the whole list as a single word would collapse them into one tag."""
-    if tags.isascii():
-        return tags
+    so encoding the whole list as a single word would collapse them into one tag.
+
+    Every element goes through encode_header_value, including the all-ASCII ones,
+    because that is also what cleans them.
+    """
     return ",".join(encode_header_value(tag) for tag in tags.split(","))
 
 
@@ -56,7 +77,9 @@ logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s %(levelname)s %(message)s",
     handlers=[
-        logging.FileHandler(LOG_FILE),
+        # Explicit UTF-8: under a C/POSIX locale the default encoding is ASCII,
+        # which would raise UnicodeEncodeError on a non-ASCII title logged below.
+        logging.FileHandler(LOG_FILE, encoding="utf-8"),
     ]
 )
 logger = logging.getLogger(__name__)
@@ -90,7 +113,9 @@ async def publish(
 
     logger.debug(f"POST {url} title={title!r} priority={priority} tags={tags!r}")
     async with httpx.AsyncClient(timeout=10) as client:
-        response = await client.post(url, headers=headers, content=message.encode("utf-8"))
+        response = await client.post(
+            url, headers=headers, content=message.encode("utf-8", errors="replace")
+        )
         logger.debug(f"POST {url} status={response.status_code}")
         response.raise_for_status()
         return response.json()
@@ -128,12 +153,18 @@ async def send_notification(
     except httpx.HTTPStatusError as e:
         logger.error(f"publish HTTP error: {e.response.status_code} {e.response.text}")
         return f"ERROR: ntfy returned HTTP {e.response.status_code}: {e.response.text}"
+    except httpx.ProtocolError as e:
+        # h11 rejected the request we built, or ntfy answered with junk: the server
+        # is reachable and not at fault. ProtocolError is a subclass of RequestError,
+        # so this must stay ahead of the branch below, which means "unreachable".
+        logger.error(f"publish protocol error: {type(e).__name__}: {e}")
+        return f"ERROR: ntfy request failed protocol validation: {e}"
     except httpx.RequestError as e:
         logger.error(f"publish request failed: {e}")
         return f"ERROR: could not reach ntfy at {NTFY_SERVER_URL}: {e}"
     except Exception as e:
-        # Anything else is a bug in how the request was built, not a server outage —
-        # keep "could not reach ntfy" reserved for actual transport failures.
+        # Anything else is a bug in this file, not in ntfy — "could not reach
+        # ntfy" above stays reserved for requests that never got an answer.
         logger.error(f"publish failed: {type(e).__name__}: {e}")
         return f"ERROR: {type(e).__name__}: {e}"
 
