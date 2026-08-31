@@ -6,3 +6,8 @@ ALLOWED_HOSTS=hp-z420-mint-steve:8092,100.64.0.3:8092
 SEARXNG_SAFESEARCH=1
 WEBSEARCH_MAX_RESULTS=8
 WEBSEARCH_MAX_FETCH_CHARS=6000
+# Search results replayed from memory for this long, over at most this many
+# distinct queries. Repeated queries are what trip the upstream engines' rate
+# limits, so repeat hits never leave the process. Set the TTL to 0 to disable.
+WEBSEARCH_CACHE_TTL_S=900
+WEBSEARCH_CACHE_MAX_ENTRIES=128

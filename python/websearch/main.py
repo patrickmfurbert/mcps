@@ -3,6 +3,7 @@ import html
 import html.parser
 import logging
 import sys
+import time
 import httpx
 import truststore
 from dotenv import load_dotenv
@@ -23,6 +24,14 @@ load_dotenv()
 SEARXNG_URL = os.getenv("SEARXNG_URL", "http://127.0.0.1:8091").rstrip("/")
 SEARXNG_TIMEOUT_S = float(os.getenv("SEARXNG_TIMEOUT_S", "20"))
 SEARXNG_SAFESEARCH = int(os.getenv("SEARXNG_SAFESEARCH", "1"))
+
+# How long a search result may be replayed from memory, and how many are kept.
+# An agentic caller re-issues the same query several times inside one burst and
+# SearXNG forwards every one of them, which is what trips brave's 180-second
+# suspension and the CAPTCHA walls. Repeats are served from here instead.
+# Set WEBSEARCH_CACHE_TTL_S=0 to disable caching entirely.
+CACHE_TTL_S = float(os.getenv("WEBSEARCH_CACHE_TTL_S", "900"))
+CACHE_MAX_ENTRIES = int(os.getenv("WEBSEARCH_CACHE_MAX_ENTRIES", "128"))
 
 MCP_HOST = os.getenv("MCP_HOST", "0.0.0.0")
 MCP_PORT = int(os.getenv("MCP_PORT", "8092"))
@@ -138,6 +147,33 @@ def compact(text: str, limit: int, keep_newlines: bool = False) -> str:
 # ---------------------------------------------------------------------------
 # SearXNG client
 # ---------------------------------------------------------------------------
+# Keyed on everything that changes the upstream answer. The server runs one event
+# loop, so a plain dict needs no lock; insertion order doubles as eviction order.
+_search_cache: dict[tuple, tuple[float, dict[str, Any]]] = {}
+
+
+def _cache_get(key: tuple) -> dict[str, Any] | None:
+    entry = _search_cache.get(key)
+    if entry is None:
+        return None
+    if time.monotonic() - entry[0] >= CACHE_TTL_S:
+        _search_cache.pop(key, None)
+        return None
+    return entry[1]
+
+
+def _cache_put(key: tuple, data: dict[str, Any]) -> None:
+    """Store a result, evicting expired entries first and the oldest after that."""
+    now = time.monotonic()
+    if len(_search_cache) >= CACHE_MAX_ENTRIES:
+        expired = [k for k, (seen, _) in _search_cache.items() if now - seen >= CACHE_TTL_S]
+        for expired_key in expired:
+            _search_cache.pop(expired_key, None)
+        while len(_search_cache) >= CACHE_MAX_ENTRIES:
+            _search_cache.pop(next(iter(_search_cache)))
+    _search_cache[key] = (now, data)
+
+
 async def searxng_search(
     query: str,
     categories: str,
@@ -157,6 +193,21 @@ async def searxng_search(
     if time_range:
         params["time_range"] = time_range
 
+    # Normalised so the same query typed with different casing or spacing still
+    # hits; every other field already comes from the params dict above.
+    key = (
+        " ".join(query.split()).casefold(),
+        params["categories"],
+        params["language"],
+        params.get("time_range", ""),
+        params["pageno"],
+    )
+    if CACHE_TTL_S > 0:
+        cached = _cache_get(key)
+        if cached is not None:
+            logger.info(f"search cache hit: {query!r}")
+            return cached
+
     url = f"{SEARXNG_URL}/search"
     logger.debug(f"GET {url} q={query!r} categories={params['categories']}")
     async with httpx.AsyncClient(timeout=SEARXNG_TIMEOUT_S) as client:
@@ -169,7 +220,11 @@ async def searxng_search(
                 "list in SearXNG's settings.yml and restart it."
             )
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+    # Only a 2xx reaches here, so a failed lookup never occupies a cache slot.
+    if CACHE_TTL_S > 0:
+        _cache_put(key, data)
+    return data
 
 
 @mcp.tool()
