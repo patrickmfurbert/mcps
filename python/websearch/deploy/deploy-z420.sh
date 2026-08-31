@@ -31,7 +31,12 @@ mkdir -p "$SEARXNG_CONFIG"
 # The SearXNG process inside the container runs as an unprivileged uid that is not
 # this user's; the bind mount must be writable or it dies at startup writing its
 # carousel/cache files.
-chmod 777 "$SEARXNG_CONFIG"
+#
+# A previous run leaves this directory owned by that mapped container uid, and only
+# root can chown or chmod it — so a re-deploy must not die here when it is already
+# world-writable, which is the state the chmod was only ever trying to achieve.
+chmod 777 "$SEARXNG_CONFIG" 2>/dev/null \
+  || echo "note: left $(stat -c '%a' "$SEARXNG_CONFIG") as-is (owned by uid $(stat -c '%u' "$SEARXNG_CONFIG"), not this user)"
 
 if [ ! -f "$SEARXNG_CONFIG/settings.yml" ]; then
   secret="$(openssl rand -hex 32)"
