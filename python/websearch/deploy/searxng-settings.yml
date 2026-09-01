@@ -22,3 +22,20 @@ search:
   formats:
     - html
     - json
+
+# Engines that return nothing from this egress IP, measured per-engine on 2026-08-31:
+# duckduckgo answers CAPTCHA on every query, qwant CAPTCHAs too, startpage sits in
+# rolling hour-long CAPTCHA suspensions, and mojeek returns an empty list with no
+# error at all. With use_default_settings on, the full default list is queried on
+# every request, so these four spend the host's reputation on zero results and keep
+# blocklist entries warm. brave is kept despite its 429 loop — it is the only source
+# here besides Google that ever contributed results alongside the survivors.
+engines:
+  - name: duckduckgo
+    disabled: true
+  - name: startpage
+    disabled: true
+  - name: qwant
+    disabled: true
+  - name: mojeek
+    disabled: true
